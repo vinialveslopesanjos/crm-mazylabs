@@ -1,0 +1,76 @@
+name: Deploy CRM MazyLabs
+
+on:
+  workflow_run:
+    workflows: [ci, perf, e2e, Publicar imagem Docker (GHCR)]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+
+jobs:
+  eligible:
+    if: github.repository == 'vinialveslopesanjos/crm-mazylabs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      ready: ${{ steps.gate.outputs.ready }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Conferir o commit atual e os cinco checks obrigatórios
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node infra/mazylabs/check-deploy.mjs
+
+  deploy:
+    needs: eligible
+    if: needs.eligible.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    # Nunca interromper uma troca em andamento. O servidor também usa flock.
+    concurrency:
+      group: crm-mazylabs-production
+      cancel-in-progress: false
+    steps:
+      - name: Atualizar somente o CRM na VPS
+        env:
+          DEPLOY_SHA: ${{ needs.eligible.outputs.sha }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          for key in VPS_HOST VPS_PORT VPS_USER VPS_SSH_KEY VPS_KNOWN_HOSTS; do
+            [ -n "${!key}" ] || { echo "::error::Secret ${key} ausente"; exit 1; }
+          done
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]]
+          key_file="$RUNNER_TEMP/crm-deploy-key"
+          hosts_file="$RUNNER_TEMP/crm-known-hosts"
+          trap 'rm -f "$key_file" "$hosts_file"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$key_file"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$hosts_file"
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i "$key_file" -p "$VPS_PORT" -o BatchMode=yes \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$hosts_file" -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" "deploy ${DEPLOY_SHA}"
+          printf 'CRM atualizado no commit `%s`.\n' "$DEPLOY_SHA" >> "$GITHUB_STEP_SUMMARY"
