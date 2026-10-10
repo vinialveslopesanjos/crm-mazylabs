@@ -235,6 +235,7 @@ jobs:
         if: github.repository == 'vinialveslopesanjos/crm-mazylabs' && matrix.parte == 4
         run: |
           node --test infra/mazylabs/check-deploy.node.mjs
+          bash infra/mazylabs/deploy-helpers.test.sh
           bash -n infra/mazylabs/deploy-entrypoint.sh
           bash -n infra/mazylabs/deploy-release.sh
           bash -n infra/mazylabs/provision-deploy-access.sh

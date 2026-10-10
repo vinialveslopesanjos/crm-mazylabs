@@ -9,7 +9,8 @@ cd "$release"
 export COMPOSE_PROJECT_NAME=crm-mazylabs
 source hostgator-setup-kit/_common.sh
 enter_project
-previous="$(readlink -f "$base/current" 2>/dev/null || true)"
+source infra/mazylabs/deploy-helpers.sh
+previous="$(previous_release "$base")"
 changed=0
 
 dc() {
@@ -44,23 +45,15 @@ export APP_IMAGE="$registry/deskcommcrm:sha-$sha"
 export WORKER_IMAGE="$registry/deskcomm-worker:sha-$sha"
 export SCHEDULER_IMAGE="$registry/deskcomm-scheduler:sha-$sha"
 export APP_PULL_POLICY=missing WORKER_PULL_POLICY=missing SCHEDULER_PULL_POLICY=missing
+# Uma tentativa repetida usa os mesmos artefatos, inclusive depois de falhar.
+[ ! -f .images.env ] || load_env .images.env
 dc config --quiet
 dc pull app worker scheduler waha redis srh
-
-pin_image() {
-  local image="$1" repository="${1%:*}" revision pin
-  revision="$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")"
-  [ "$revision" = "$sha" ] || { echo 'Imagem não corresponde ao commit aprovado.' >&2; return 1; }
-  pin="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image" \
-    | awk -v prefix="$repository@sha256:" 'index($0,prefix)==1 && !found {print; found=1} END {if (!found) exit 1}')"
-  [[ "$pin" =~ ^ghcr\.io/vinialveslopesanjos/[a-z-]+@sha256:[a-f0-9]{64}$ ]] || return 1
-  printf '%s' "$pin"
-}
 # As tags localizam a publicação; os digests fixam o artefato de cada release.
 # Atribuições separadas de `export`: o builtin não pode esconder falha do pin.
-app_pin="$(pin_image "$APP_IMAGE")"
-worker_pin="$(pin_image "$WORKER_IMAGE")"
-scheduler_pin="$(pin_image "$SCHEDULER_IMAGE")"
+app_pin="$(pin_image "$sha" "$APP_IMAGE")"
+worker_pin="$(pin_image "$sha" "$WORKER_IMAGE")"
+scheduler_pin="$(pin_image "$sha" "$SCHEDULER_IMAGE")"
 export APP_IMAGE="$app_pin" WORKER_IMAGE="$worker_pin" SCHEDULER_IMAGE="$scheduler_pin"
 printf 'APP_IMAGE=%s\nWORKER_IMAGE=%s\nSCHEDULER_IMAGE=%s\n' \
   "$APP_IMAGE" "$WORKER_IMAGE" "$SCHEDULER_IMAGE" > .images.env
