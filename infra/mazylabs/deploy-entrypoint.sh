@@ -17,8 +17,22 @@ fi
 git -C "$repo" fetch origin main
 [ "$(git -C "$repo" rev-parse origin/main)" = "$sha" ] \
   || { echo 'Commit superado ou fora da main; deploy recusado.' >&2; exit 1; }
+registry_token=''
+if [ ! -t 0 ]; then
+  IFS= read -r registry_token || true
+fi
+# Vários workflows podem terminar juntos e aprovar o mesmo SHA. Uma release
+# já promovida e saudável não precisa de outro backup nem de outro baseline.
+if [ "$(readlink -f "$base/current" 2>/dev/null || true)" = "$base/releases/$sha" ]; then
+  if health="$(curl --fail --silent --max-time 15 http://127.0.0.1:3020/api/v1/health)" \
+    && printf '%s' "$health" | grep -Fq "${sha:0:7}"; then
+    unset registry_token
+    echo "Commit ${sha:0:7} já está ativo e saudável."
+    exit 0
+  fi
+fi
 # O token de leitura do GHCR vive somente nesta execução; não fica na VPS.
-if IFS= read -r registry_token && [ -n "$registry_token" ]; then
+if [ -n "$registry_token" ]; then
   export DOCKER_CONFIG
   DOCKER_CONFIG="$(mktemp -d "$base/state/docker-auth.XXXXXX")"
   trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT

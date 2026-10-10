@@ -38,6 +38,8 @@ Como o fork começa sem releases próprias, a conferência de isolamento do kit 
 
 Na VPS: `/opt/crm-mazylabs/shared/.env` guarda as credenciais, com acesso restrito ao administrador. Cada release recebe um link para esse arquivo; o deploy não substitui segredos. `/opt/crm-mazylabs/releases/<SHA>` contém o código e `.images.env` com os pins daquela release. `/opt/crm-mazylabs/current` aponta para a última release promovida.
 
+As tags `sha-<commit>` localizam a publicação. Depois do pull, o deploy exige que o label `org.opencontainers.image.revision` corresponda ao commit aprovado e grava as três referências por digest em `.images.env`. Assim, o rollback usa os artefatos daquela release mesmo se uma tag for republicada. Um evento repetido para a release já ativa e saudável termina sem repetir backup e migração.
+
 No GitHub, environment `production`: `VPS_HOST`, `VPS_PORT`, `VPS_USER`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS`. A chave privada é exclusiva desta automação; a chave pública tem comando forçado, sem PTY nem encaminhamento de portas. O usuário de deploy não entra no grupo Docker. O fingerprint do servidor é conferido pela console da Hostinger antes de cadastrar `VPS_KNOWN_HOSTS`. As credenciais do Supabase e do OpenRouter ficam na VPS, fora do GitHub e das imagens.
 
 O deploy recebe pela entrada da conexão SSH um `GITHUB_TOKEN` temporário com leitura de pacotes. A autenticação Docker fica em uma pasta privada temporária, removida ao terminar a execução, sem token pessoal permanente na VPS. As imagens podem manter a visibilidade padrão do GHCR. O código MIT mantém os créditos originais.
