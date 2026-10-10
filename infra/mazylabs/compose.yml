@@ -1,0 +1,12 @@
+# Overlay da VPS MazyLabs. Nginx do host continua atendendo todos os projetos.
+# Requer Docker Compose >= 2.24 (tag !reset).
+services:
+  app:
+    ports:
+      - "127.0.0.1:3020:3000"
+  worker:
+    build: !reset null
+  scheduler:
+    build: !reset null
+  caddy:
+    profiles: ["proxy-externo"]

@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev]
 
 # O GITHUB_TOKEN destes jobs serve a `actions/checkout` (clone) e a
 # `actions/setup-node` (manifest de `actions/node-versions`, repo público) —
@@ -231,6 +231,18 @@ jobs:
         # aceita `timeout-minutes`. Razão e medições: o cabeçalho da action.
         timeout-minutes: 5
 
+      - name: Validar o deploy do fork MazyLabs
+        if: github.repository == 'vinialveslopesanjos/crm-mazylabs' && matrix.parte == 4
+        run: |
+          node --test infra/mazylabs/check-deploy.node.mjs
+          bash -n infra/mazylabs/deploy-entrypoint.sh
+          bash -n infra/mazylabs/deploy-release.sh
+          cp .env.hostgator.example .env
+          docker compose -f docker-compose.prod.yml -f infra/mazylabs/compose.yml config --quiet
+          docker compose -f docker-compose.prod.yml -f infra/mazylabs/compose.yml config --format json \
+            | jq -e '.services.app.ports[0].host_ip == "127.0.0.1" and .services.app.ports[0].published == "3020" and (.services.worker.build == null) and (.services.scheduler.build == null)'
+          rm .env
+
       # As guardas estruturais antes de tudo, no MESMO job (job novo disputaria
       # vaga numa fila que já é o gargalo). Elas só leem arquivo — baseline ×
       # cadeia, MANIFEST, varredura de anon, docs, workflows — e rodam sem jsdom
@@ -379,7 +391,6 @@ jobs:
       - name: O acervo de .changes/ cabe na tela da VPS?
         if: matrix.parte == 1 && github.event_name != 'pull_request'
         run: pnpm release:acervo-cabe
-
 
       # Scripts do kit self-host num repo git descartável (docker/crontab
       # dublados). É o único gate que exercita o update.sh — um erro aqui

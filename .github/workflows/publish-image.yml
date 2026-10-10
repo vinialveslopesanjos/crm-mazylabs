@@ -239,6 +239,8 @@ jobs:
             latest=false
             suffix=-${{ matrix.arch }},onlatest=true
           tags: |
+            # Pin imutável usado exclusivamente pelo deploy deste fork.
+            type=raw,value=sha-${{ github.sha }},enable=${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -271,6 +273,7 @@ jobs:
             # o CANAL é ato do job `promover-stable`, lá embaixo, quando o
             # conjunto está completo.
           labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.title=${{ matrix.title }}
 
       - name: Set up Buildx
@@ -330,6 +333,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/deskcomm-voice-agent
           flavor: latest=false
           tags: |
+            type=raw,value=sha-${{ github.sha }},enable=${{ github.ref_type == 'branch' && github.ref_name == 'main' }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
