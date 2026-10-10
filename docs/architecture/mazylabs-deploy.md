@@ -24,6 +24,8 @@ flowchart LR
 
 `dev` também roda o CI. Somente a `main` publica imagens e pode ir para produção. O gate usa os checks do **mesmo SHA da main**, não o resultado de um PR anterior. Eventos superados são ignorados; se algum check falhar, nada é enviado à VPS. A conclusão de cada workflow reavalia o conjunto; uma execução manual também pode reavaliar a main atual.
 
+Como o fork começa sem releases próprias, a conferência de isolamento do kit usa as tags upstream `v1.79.0` (base inicial do fork) e `v1.63.0` (referência antiga exigida pelo teste original). O CI busca essas duas tags explicitamente, preserva o origin do fork e mantém as duas majors do Postgres e o teste de atualização com dados. Ao incorporar uma nova versão upstream, atualizar a referência de compatibilidade com a versão incorporada.
+
 ## Arquivos e acesso
 
 - `.github/workflows/mazylabs-deploy.yml`: gate e conexão SSH.

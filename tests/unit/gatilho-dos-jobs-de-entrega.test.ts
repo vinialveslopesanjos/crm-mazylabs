@@ -236,6 +236,19 @@ const GATILHO_ESPERADO: Record<string, { condicao: string | null; efeito: string
   },
 
   // --- e o que legitimamente tem interruptor -----------------------------------
+  "mazylabs-deploy.yml::eligible": {
+    condicao: "github.repository == 'vinialveslopesanjos/crm-mazylabs'",
+    efeito:
+      "O deploy pertence somente ao fork MazyLabs. Fora dele não consulta nem usa " +
+      "a configuração da VPS. No fork, desligar este job impede a atualização automática.",
+  },
+  "mazylabs-deploy.yml::deploy": {
+    condicao: "needs.eligible.outputs.ready == 'true'",
+    efeito:
+      "Atualiza a VPS somente depois dos cinco checks bem-sucedidos do commit atual. " +
+      "O pulo é deliberado quando o commit foi superado ou os checks ainda não passaram; " +
+      "a conclusão de outro workflow reavalia o gate. Este job não é check de merge.",
+  },
   "acolhida.yml::acolher": {
     condicao:
       "github.repository_owner == 'melgarafael' && " +
