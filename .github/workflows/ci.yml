@@ -237,6 +237,7 @@ jobs:
           node --test infra/mazylabs/check-deploy.node.mjs
           bash -n infra/mazylabs/deploy-entrypoint.sh
           bash -n infra/mazylabs/deploy-release.sh
+          bash -n infra/mazylabs/provision-deploy-access.sh
           cp .env.hostgator.example .env
           docker compose -f docker-compose.prod.yml -f infra/mazylabs/compose.yml config --quiet
           docker compose -f docker-compose.prod.yml -f infra/mazylabs/compose.yml config --format json \

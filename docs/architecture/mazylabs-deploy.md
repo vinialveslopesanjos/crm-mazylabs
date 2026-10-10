@@ -31,6 +31,7 @@ Como o fork começa sem releases próprias, a conferência de isolamento do kit 
 - `.github/workflows/mazylabs-deploy.yml`: gate e conexão SSH.
 - `infra/mazylabs/check-deploy.mjs`: identifica main e exige os cinco checks.
 - `infra/mazylabs/deploy-entrypoint.sh`: instalado como `/usr/local/sbin/crm-mazylabs-deploy`, root-owned. Aceita apenas `deploy <SHA de 40 caracteres>` e exige que ele seja o topo atual da main.
+- `infra/mazylabs/provision-deploy-access.sh`: cadastra a chave pública exclusiva do CI, instala o comando forçado e valida a regra limitada de sudo. Executado pelo administrador na instalação inicial.
 - `infra/mazylabs/deploy-release.sh`: imagens, backup, baseline, probes e promoção.
 - `infra/mazylabs/compose.yml`: usa o Compose original e publica o app somente em `127.0.0.1:3020`. WAHA e Redis continuam privados. O Caddy fica fora desta instalação; o Nginx existente faz HTTPS.
 - `infra/mazylabs/nginx.conf`: configuração inicial do domínio. Bloqueia o webhook WAHA global público; webhooks específicos de canais seguem o contrato original.
@@ -39,7 +40,7 @@ Na VPS: `/opt/crm-mazylabs/shared/.env` guarda as credenciais, com acesso restri
 
 No GitHub, environment `production`: `VPS_HOST`, `VPS_PORT`, `VPS_USER`, `VPS_SSH_KEY` e `VPS_KNOWN_HOSTS`. A chave privada é exclusiva desta automação; a chave pública tem comando forçado, sem PTY nem encaminhamento de portas. O usuário de deploy não entra no grupo Docker. O fingerprint do servidor é conferido pela console da Hostinger antes de cadastrar `VPS_KNOWN_HOSTS`. As credenciais do Supabase e do OpenRouter ficam na VPS, fora do GitHub e das imagens.
 
-O deploy usa pacotes públicos do GHCR. A instalação inicial precisa tornar públicos os quatro pacotes pertencentes ao fork antes do primeiro pull. O código MIT mantém os créditos originais.
+O deploy recebe pela entrada da conexão SSH um `GITHUB_TOKEN` temporário com leitura de pacotes. A autenticação Docker fica em uma pasta privada temporária, removida ao terminar a execução, sem token pessoal permanente na VPS. As imagens podem manter a visibilidade padrão do GHCR. O código MIT mantém os créditos originais.
 
 ## Configuração inicial
 

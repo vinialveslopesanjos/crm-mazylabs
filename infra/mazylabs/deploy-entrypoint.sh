@@ -17,6 +17,19 @@ fi
 git -C "$repo" fetch origin main
 [ "$(git -C "$repo" rev-parse origin/main)" = "$sha" ] \
   || { echo 'Commit superado ou fora da main; deploy recusado.' >&2; exit 1; }
+# O token de leitura do GHCR vive somente nesta execução; não fica na VPS.
+if IFS= read -r registry_token && [ -n "$registry_token" ]; then
+  export DOCKER_CONFIG
+  DOCKER_CONFIG="$(mktemp -d "$base/state/docker-auth.XXXXXX")"
+  trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
+  # Preserva a descoberta do Compose quando a hospedagem o instala no home.
+  if [ -d /root/.docker/cli-plugins ]; then
+    ln -s /root/.docker/cli-plugins "$DOCKER_CONFIG/cli-plugins"
+  fi
+  printf '%s' "$registry_token" | docker login ghcr.io \
+    --username vinialveslopesanjos --password-stdin > /dev/null
+  unset registry_token
+fi
 release="$base/releases/$sha"
 if [ ! -d "$release" ]; then
   mkdir "$release"
